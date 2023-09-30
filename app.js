@@ -6,32 +6,36 @@ const app = express();
 app.use(express.json());
 
 const port = 3000; // Set your desired port
-let blogData;
+let blogDataPromise;
+
+const fetchBlogData = async () => {
+  const response = await fetch('https://intent-kit-16.hasura.app/api/rest/blogs', {
+    method: 'GET',
+    headers: {
+      'x-hasura-admin-secret': '32qR4KmXOIpsGPQKMqEJHGJS27G5s7HdSKO3gdtQd2kv5e852SiYwWNfxkZOBuQ6'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch data from the third-party API');
+  }
+
+  return response.json();
+};
 // Middleware to retrieve and analyze blog data
 app.get('/api/blog-stats', async (req, res) => {
   try {
-    if (!blogData) {
-    const response = await fetch('https://intent-kit-16.hasura.app/api/rest/blogs', {
-      method: 'GET',
-      headers: {
-        'x-hasura-admin-secret': '32qR4KmXOIpsGPQKMqEJHGJS27G5s7HdSKO3gdtQd2kv5e852SiYwWNfxkZOBuQ6'
-      }
-    })
-    if (!response.ok) {
-      throw new Error('Failed to fetch data from the third-party API');
-    }
-    blogData = await response.json(); // Assign the fetched data to the blogData variable
+    if (!blogDataPromise) {
+     // Fetch and store the Promise
+     blogDataPromise = fetchBlogData();
   }
+  blogData = await blogDataPromise;
      
         // Calculate analytics using Lodash
         const totalBlogs = blogData.blogs.length;
-        console.log(totalBlogs)
         const longestBlog = _.maxBy(blogData.blogs, 'title.length');
-        console.log(longestBlog)
         const blogsWithPrivacy = blogData.blogs.filter(blog => blog.title.toLowerCase().includes('privacy'));
-        console.log(blogsWithPrivacy)
         const uniqueBlogTitles = _.uniqBy(blogData.blogs, 'title');
-        console.log(uniqueBlogTitles)
 
         // Prepare the response JSON
         const blogStats = {
@@ -52,7 +56,7 @@ app.get('/api/blog-stats', async (req, res) => {
 
 
 // Middleware for blog search
-app.get('/api/blog-search', (req, res) => {
+app.get('/api/blog-search', async (req, res) => {
   try {
     const query = req.query.query; // Get the query parameter from the request
 
@@ -60,13 +64,10 @@ app.get('/api/blog-search', (req, res) => {
       return res.status(400).json({ error: 'Invalid query parameter' });
     }
 
-    if (!blogData || !blogData.blogs) {
-      return res.status(500).json({ error: 'Blog data is not available' });
-    }
-
+    const blogData = await fetchBlogData();
     // Search blogs based on the query (case-insensitive)
     const matchingBlogs = blogData.blogs.filter(blog =>
-      blog.title.toLowerCase().includes(query.toLowerCase())
+      blog.title.includes(query)
     );
 
     // Prepare the response JSON
