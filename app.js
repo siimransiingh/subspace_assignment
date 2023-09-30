@@ -70,20 +70,21 @@ app.get('/api/blog-stats', async (req, res) => {
 const memoizedSearch = _.memoize(async (query) => {
   const blogData = await getBlogData();
 
-const matchingBlogs = blogData.blogs.filter(blog =>
-  blog.title.toLowerCase().includes(query.toLowerCase())
-);
+  const matchingBlogs = blogData.blogs.filter(blog =>
+    blog.title.includes(query)
+  );
 
-// Prepare and return the response JSON
-return {
-  query,
-  matchingBlogs,
-};
-}, (query) => query); // Using the query as the cache key
+
+  return {
+    query,
+    matchingBlogs,
+  };
+}, (query) => query);
 
 // Middleware for blog search
 app.get('/api/blog-search', async (req, res) => {
   try {
+
     const query = req.query.query;
 
     if (!query || typeof query !== 'string') {
@@ -97,9 +98,6 @@ app.get('/api/blog-search', async (req, res) => {
     res.status(500).json({ error: 'An error occurred while processing the request.' });
   }
 });
-
-
-
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
